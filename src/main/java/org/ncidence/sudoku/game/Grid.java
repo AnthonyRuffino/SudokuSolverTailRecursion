@@ -8,18 +8,22 @@ import org.ncidence.sudoku.sudokusolver.SudokuSolverFatalException;
 
 public class Grid implements IGrid {
 
+	//x,x,x,2,6,x,7,x,1,6,8,x,x,7,x,x,9,x,1,9,x,x,x,4,5,x,x,8,2,x,1,x,x,x,4,x,x,x,4,6,x,2,9,x,x,x,5,x,x,x,3,x,2,8,x,x,9,3,x,x,x,7,4,x,4,8,9,5,x,x,3,6,7,x,3,x,1,8,x,x,x
+	//8,x,x,x,x,x,x,x,x,x,x,3,6,x,x,x,x,x,x,7,x,x,9,x,2,x,x,x,5,x,x,x,7,x,x,x,x,x,x,x,4,5,6,x,x,x,x,x,1,x,x,x,3,x,x,x,1,x,x,x,x,6,8,x,x,8,5,x,x,x,1,x,x,9,x,x,x,x,4,x,x
 	private Cell[] cells;
 	private IGrid lastHopefulPredecessor = null;
 	private boolean hopeful = true;
 	private Cell lastCellTested = null;
 	private Integer highestMissingCellNumber = null;
+	private boolean isSolved = false;
 
 	public void init(String[] cellsAsStrings) throws SudokuSolverFatalException {
 		if (cellsAsStrings == null)
 			throw new SudokuSolverFatalException("Grid is null (cellsAsStrings).");
 
 		if (cellsAsStrings.length != 81)
-			throw new SudokuSolverFatalException("Grid has "+(cellsAsStrings.length<81 ? "less" : "more")+" than 81 cells: " + cellsAsStrings.length);
+			throw new SudokuSolverFatalException("Grid has " + (cellsAsStrings.length < 81 ? "less" : "more")
+					+ " than 81 cells: " + cellsAsStrings.length);
 
 		this.cells = new Cell[cellsAsStrings.length];
 
@@ -120,39 +124,87 @@ public class Grid implements IGrid {
 		return hopeful;
 	}
 
-	public Integer[] getSolution() throws SudokuSolverFatalException {
+	public void setHopeful(boolean hopeful) {
+		this.hopeful = hopeful;
+	}
 
-		if (cells == null)
+	public Cell getLastCellTested() {
+		return lastCellTested;
+	}
+
+	public void setLastCellTested(Cell lastCellTested) {
+		this.lastCellTested = lastCellTested;
+	}
+
+	public Integer getHighestMissingCellNumber() {
+		return highestMissingCellNumber;
+	}
+
+	public Integer[] getCellsAsIntegerArray() {
+		Integer[] intArray = new Integer[81];
+		for (Integer cellNumber = 0; cellNumber < cells.length; cellNumber++) {
+			Cell cell = cells[cellNumber];
+			intArray[cellNumber] = cell.getIntValue();
+		}
+		return intArray;
+	}
+
+	public boolean isSolved() {
+		return isSolved;
+	}
+
+	public void setSolved(boolean solved) {
+		isSolved = solved;
+	}
+
+	public Integer[] getSolution() throws SudokuSolverFatalException {
+		IGrid currentGrid = this;
+
+		do {
+			currentGrid = next(currentGrid);
+
+			if (currentGrid == null) {
+				return null;
+			} else if (currentGrid.isSolved()) {
+				return currentGrid.getCellsAsIntegerArray();
+			}
+		} while (true);
+	}
+
+	public static IGrid next(IGrid last) throws SudokuSolverFatalException {
+
+		if (last.getCells() == null)
 			throw new SudokuSolverFatalException("Grid is null (cells).");
 
-		if (cells.length != 81)
+		if (last.getCells().length != 81)
 			throw new SudokuSolverFatalException("Grid has less than 81 cells.");
 
 		Cell cellToTest = null;
 
-		if (lastCellTested == null) {
-			for (Integer cellNumber = 0; cellNumber < cells.length; cellNumber++) {
-				Cell cell = cells[cellNumber];
+		if (last.getLastCellTested() == null) {
+			for (Integer cellNumber = 0; cellNumber < last.getCells().length; cellNumber++) {
+				Cell cell = last.getCells()[cellNumber];
 				if (cell == null)
 					throw new SudokuSolverFatalException("Null cell detected.");
 				if (cell.getIntValue() == null) {
 					cellToTest = cell;
 					cellToTest.setValue(1);
-					lastCellTested = cellToTest;
+					last.setLastCellTested(cellToTest);
 					break;
 				}
 			}
 		} else {
-			lastCellTested.setValue(lastCellTested.getIntValue() + 1);
-			cellToTest = lastCellTested;
+			last.getLastCellTested().setValue(last.getLastCellTested().getIntValue() + 1);
+			cellToTest = last.getLastCellTested();
 		}
 
 		if (cellToTest == null)
 			throw new SudokuSolverFatalException("Cell to solve was null");
 
-		boolean isLastCell = highestMissingCellNumber.equals(cellToTest.getCellNumber());
-		
-		if(cellToTest.getIntValue() > 9){
+		boolean isLastCell = last.getHighestMissingCellNumber() != null
+				&& last.getHighestMissingCellNumber().equals(cellToTest.getCellNumber());
+
+		if (cellToTest.getIntValue() > 9) {
 			System.out.println(">9");
 		}
 
@@ -161,26 +213,27 @@ public class Grid implements IGrid {
 			if (cellToTest.isValid()) {
 				if (isLastCell) {
 					System.out.println("Solution found.");
-					return getCellsAsIntegerArray();
+					last.setSolved(true);
+					return last;
 				} else {
-					hopeful = i < 9;
+					last.setHopeful(i < 9);
 					IGrid grid = new Grid();
-					grid.init(this);
-					return grid.getSolution();
+					grid.init(last);
+					return grid;
 				}
 			} else if (i.equals(9)) {
-				hopeful = false;
+				last.setHopeful(false);
 				if (isLastCell) {
-					if (lastHopefulPredecessor != null) {
+					if (last.getLastHopefulPredecessor() != null) {
 						System.out.println("On last cell and going back to a hopeful predessor.");
-						return lastHopefulPredecessor.getSolution();
+						return last.getLastHopefulPredecessor();
 					}
 					System.out.println("No more hopeful predecessors [last cell].");
 					return null;
 				} else {
-					if (lastHopefulPredecessor != null) {
+					if (last.getLastHopefulPredecessor() != null) {
 						System.out.println("Calling hopeful predecessor.");
-						return lastHopefulPredecessor.getSolution();
+						return last.getLastHopefulPredecessor();
 					}
 					System.out.println("No more hopeful predecessors.");
 					return null;
@@ -189,15 +242,6 @@ public class Grid implements IGrid {
 		}
 
 		throw new SudokuSolverFatalException("End reached with no solution");
-	}
-
-	private Integer[] getCellsAsIntegerArray() {
-		Integer[] intArray = new Integer[81];
-		for (Integer cellNumber = 0; cellNumber < cells.length; cellNumber++) {
-			Cell cell = cells[cellNumber];
-			intArray[cellNumber] = cell.getIntValue();
-		}
-		return intArray;
 	}
 
 	// region STATIC HELPERS
