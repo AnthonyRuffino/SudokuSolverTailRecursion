@@ -7,7 +7,7 @@ import org.ncidence.sudoku.game.IGrid;
 
 import com.google.gson.Gson;
 
-public class SudokuSolverDriver {
+public class SudokuSolverTailRecursionDriver {
 	
 	
 	private Date startTime;
@@ -17,7 +17,7 @@ public class SudokuSolverDriver {
 	
 	public static void main(String[] args){
 		if(args != null && args.length > 0){
-			SudokuSolverDriver sudokuSolver = new SudokuSolverDriver();
+			SudokuSolverTailRecursionDriver sudokuSolver = new SudokuSolverTailRecursionDriver();
 			sudokuSolver.solveCsv(args[0]);
 		}
 	}
